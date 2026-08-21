@@ -1,24 +1,32 @@
-import React from 'react';
-import { ResponsiveContainer, ComposedChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-export default function Chart({ chartData }) {
-  if (!chartData || chartData.length === 0) {
-    return <div className="text-slate-500 text-center p-10">No chart data loaded yet. Upload a CSV and speak a command.</div>;
-  }
+export default function Chart({ data }) {
+  if (!data || data.length === 0) return (
+    <div className="text-gray-400 text-center mt-10">No chart data available yet.</div>
+  );
 
   return (
-    <div className="w-full h-96 bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <div className="h-96 w-full mt-8 bg-gray-900 p-4 rounded-lg shadow-lg">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-          <XAxis dataKey="date" stroke="#94a3b8" />
-          <YAxis stroke="#94a3b8" />
-          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }} />
-          <Legend />
-          <Line type="monotone" dataKey="historical" stroke="#38bdf8" strokeWidth={2} name="Actual" dot={false} />
-          <Line type="monotone" dataKey="imputed" stroke="#facc15" strokeWidth={2} name="Imputed Gaps" dot={true} />
-          <Line type="monotone" dataKey="forecast" stroke="#4ade80" strokeWidth={2} name="Forecast" strokeDasharray="5 5" />
-        </ComposedChart>
+        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis dataKey="date" stroke="#9CA3AF" />
+          <YAxis stroke="#9CA3AF" />
+          <Tooltip 
+            contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px', color: '#F3F4F6' }} 
+            itemStyle={{ color: '#E5E7EB' }}
+          />
+          <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+          
+          {/* Blue for Historical */}
+          <Line type="monotone" dataKey="historical" stroke="#3B82F6" strokeWidth={3} connectNulls name="Historical" />
+          
+          {/* Yellow Dashed for Imputed Gaps */}
+          <Line type="monotone" dataKey="imputed" stroke="#EAB308" strokeWidth={3} strokeDasharray="5 5" connectNulls name="Imputed" />
+          
+          {/* Green for Forecast */}
+          <Line type="monotone" dataKey="forecast" stroke="#22C55E" strokeWidth={3} connectNulls name="Forecast" />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

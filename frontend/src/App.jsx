@@ -1,62 +1,79 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import VoiceButton from './components/VoiceButton';
 import Chart from './components/Chart';
 import AudioPlayer from './components/AudioPlayer';
-import { sendChat } from './services/api';
+import mockResponse from '../mocks/chat_response.json';
 
 export default function App() {
-  const [fileId, setFileId] = useState(null);
+  // const [datasetMetadata, setDatasetMetadata] = useState(null);
+  const [datasetMetadata, setDatasetMetadata] = useState({ ready: true });
   const [chartData, setChartData] = useState([]);
-  const [agentText, setAgentText] = useState("");
-  const [audioBase64, setAudioBase64] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [audioBase64, setAudioBase64] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleTranscript = async (transcript) => {
-    if (!fileId) {
-      alert("Please upload a CSV file first!");
-      return;
-    }
-    
-    setLoading(true);
-    setAgentText(`Processing: "${transcript}"...`);
+  // Triggered when FileUpload.jsx finishes the CSV upload
+  const handleUploadSuccess = (metadata) => {
+    setDatasetMetadata(metadata);
+  };
+
+  // Triggered when VoiceButton.jsx finishes listening
+  const handleVoiceSubmit = async (transcript) => {
+    setIsProcessing(true);
+    console.log("User said:", transcript);
+
+    // ==========================================
+    // TEMPORARY MOCK INJECTION:
+    // We use a 1-second timeout to simulate backend processing
+    // ==========================================
+    setTimeout(() => {
+      setChartData(mockResponse.chart_payload.data);
+      setAudioBase64(mockResponse.audio_base64);
+      setIsProcessing(false);
+    }, 1000);
+
+    /*
+    // ⚠️ REAL API CALL (COMMENTED OUT UNTIL BACKEND IS READY):
     try {
-      const res = await sendChat(transcript, fileId);
-      setAgentText(res.text);
-      setChartData(res.chart_payload.data);
-      setAudioBase64(res.audio_base64);
-    } catch (err) {
-      setAgentText("Error communicating with backend.");
-      console.error(err);
+      const response = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: transcript, file_id: "mock_123" })
+      });
+      const data = await response.json();
+      setChartData(data.chart_payload.data);
+      setAudioBase64(data.audio_base64);
+    } catch (error) {
+      console.error("Chat API failed", error);
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
+    */
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <header className="border-b border-slate-800 pb-4">
-          <h1 className="text-2xl font-bold tracking-tight">Generative UI Voice Analytics</h1>
-          <p className="text-sm text-slate-400">Autonomous Implantation, Forecasting & Voice Agent</p>
-        </header>
+    <div className="min-h-screen bg-gray-950 text-white p-8 font-sans">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <h1 className="text-3xl font-bold tracking-tight">Voice Analytics Assistant</h1>
+        
+        {/* 1. Upload UI & Dataset Ready State */}
+        <FileUpload onUploadSuccess={handleUploadSuccess} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FileUpload onUploadSuccess={(id) => setFileId(id)} />
-          <div className="flex flex-col items-center justify-center p-4 bg-slate-900 border border-slate-800 rounded-lg">
-            <VoiceButton onTranscript={handleTranscript} />
-            {loading && <p className="text-xs text-indigo-400 mt-2">Agent is thinking...</p>}
-          </div>
-        </div>
-
-        {agentText && (
-          <div className="p-4 bg-slate-900 border border-slate-800 rounded-lg text-indigo-300 text-sm">
-            <strong>Agent Response:</strong> {agentText}
+        {/* 2. Voice Input (Only shows if dataset is ready) */}
+        {datasetMetadata && (
+          <div className="flex flex-col items-center justify-center p-6 bg-gray-900 rounded-lg border border-gray-800 shadow-sm">
+            <VoiceButton onSubmit={handleVoiceSubmit} disabled={isProcessing} />
+            {isProcessing && <p className="mt-4 text-sm text-gray-400 animate-pulse">Processing request...</p>}
           </div>
         )}
 
-        <Chart chartData={chartData} />
-        <AudioPlayer audioBase64={audioBase64} />
+        {/* 3. Result Display */}
+        {chartData.length > 0 && (
+          <>
+            <Chart data={chartData} />
+            <AudioPlayer base64Audio={audioBase64} />
+          </>
+        )}
       </div>
     </div>
   );

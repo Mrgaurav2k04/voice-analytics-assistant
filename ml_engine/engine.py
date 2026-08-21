@@ -1,17 +1,17 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 from sklearn.impute import KNNImputer
 import pmdarima as pm
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from datetime import datetime, timedelta
 
 def auto_impute(df, target_col=None):
     """
-    Fulfills PRD Section 10: Imputation module.
-    Runs a tournament of imputation strategies, selects the best, and returns processed_df.
-    Returns: (processed_df, metadata_dict)
+    Automatically detects missing values and fills them using a tournament
+    of imputation strategies (Linear, Forward Fill, KNN).
+    Only missing values are replaced; known values are strictly preserved.
     """
     if target_col is None:
-        # Auto-detect first numeric column with missing values
         for col in df.select_dtypes(include=[np.number]).columns:
             if df[col].isna().sum() > 0:
                 target_col = col
@@ -24,7 +24,6 @@ def auto_impute(df, target_col=None):
     missing_mask = series.isna()
     missing_count = int(missing_mask.sum())
     
-    # Mark which rows were imputed for charting
     processed_df[f"{target_col}_is_imputed"] = missing_mask
     
     if missing_count == 0:
@@ -35,8 +34,6 @@ def auto_impute(df, target_col=None):
             "target_col": target_col
         }
     
-    # Tournament: We'll evaluate strategies on a known slice if possible
-    # Create a synthetic test set by masking 10% of known values
     known_indices = np.where(~missing_mask)[0]
     
     if len(known_indices) > 10:
@@ -90,7 +87,6 @@ def auto_impute(df, target_col=None):
                 best_score = rmse
                 best_method = name
 
-    # Apply the winning method to the actual missing data
     if best_method == 'Linear Interpolation':
         final_series = series.interpolate(method='linear', limit_direction='both')
     elif best_method == 'Forward Fill':
@@ -98,73 +94,144 @@ def auto_impute(df, target_col=None):
     else:
         final_series = run_knn(series)
         
-    processed_df[target_col] = final_series
+    # Crucial Fix: Only replace missing values, preserve all known values exactly
+    processed_df.loc[missing_mask, target_col] = final_series[missing_mask]
 
     metadata = {
         "missing_values_found": missing_count,
         "values_imputed": missing_count,
         "method": best_method,
-        "tournament_score": best_score if best_score != float('inf') else None,
+        "tournament_score": float(best_score) if best_score != float('inf') else None,
         "target_col": target_col
     }
     
     return processed_df, metadata
 
-
 def auto_forecast(df, target_col, steps=6):
     """
-    Fulfills PRD Section 10 & 11: Forecasting and generating the unified chart payload.
-    Expects df to be the processed_df from auto_impute.
-    Returns: list[dict] matching chart_payload.data schema
+    Forecasts future values for a given column. 
+    Uses a tournament between Auto-ARIMA and Exponential Smoothing.
+    Returns a strict JSON-serializable dictionary output.
     """
-    processed_values = df[target_col].tolist()
-    
+    series = df[target_col].tolist()
     is_imputed_col = f"{target_col}_is_imputed"
     if is_imputed_col in df.columns:
         is_imputed_mask = df[is_imputed_col].tolist()
     else:
-        is_imputed_mask = [False] * len(processed_values)
+        is_imputed_mask = [False] * len(series)
         
-    # Forecast with confidence intervals using auto_arima
-    model = pm.auto_arima(
-        processed_values, 
-        seasonal=False, 
-        stepwise=True, 
-        suppress_warnings=True,
-        error_action='ignore'
-    )
-    forecasts, conf_int = model.predict(n_periods=steps, return_conf_int=True)
+    # Time/Timestamp handling
+    time_col = None
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            time_col = col
+            break
+            
+    timestamps = []
+    future_timestamps = []
+    if time_col:
+        dates = df[time_col].tolist()
+        timestamps = [d.strftime("%Y-%m-%d %H:%M:%S") if pd.notnull(d) else str(i) for i, d in enumerate(dates)]
+        
+        if len(dates) >= 2:
+            avg_diff = (dates[-1] - dates[0]) / (len(dates) - 1)
+            last_date = dates[-1]
+            for i in range(1, steps + 1):
+                future_timestamps.append((last_date + (avg_diff * i)).strftime("%Y-%m-%d %H:%M:%S"))
+        else:
+            for i in range(1, steps + 1):
+                future_timestamps.append(str(len(series) + i - 1))
+    else:
+        timestamps = [str(i) for i in range(len(series))]
+        future_timestamps = [str(len(series) + i) for i in range(steps)]
+        
+    # Tournament: Auto-ARIMA vs Exponential Smoothing
+    val_size = min(steps, max(1, len(series) // 5))
+    if len(series) > 10:
+        train_series = series[:-val_size]
+        test_series = series[-val_size:]
+        
+        models = {}
+        
+        # 1. Auto-ARIMA
+        try:
+            arima_model = pm.auto_arima(train_series, seasonal=False, stepwise=True, suppress_warnings=True, error_action='ignore')
+            arima_preds = arima_model.predict(n_periods=val_size)
+            arima_rmse = np.sqrt(np.mean((np.array(test_series) - np.array(arima_preds))**2))
+            models['Auto-ARIMA'] = arima_rmse
+        except:
+            models['Auto-ARIMA'] = float('inf')
+            
+        # 2. Exponential Smoothing
+        try:
+            hw_model = ExponentialSmoothing(train_series, trend='add', seasonal=None, initialization_method="estimated").fit()
+            hw_preds = hw_model.forecast(val_size)
+            hw_rmse = np.sqrt(np.mean((np.array(test_series) - np.array(hw_preds))**2))
+            models['Exponential Smoothing'] = hw_rmse
+        except:
+            models['Exponential Smoothing'] = float('inf')
+            
+        best_model_name = min(models, key=models.get)
+        if models[best_model_name] == float('inf'):
+            best_model_name = 'Auto-ARIMA' # fallback
+    else:
+        best_model_name = 'Auto-ARIMA'
+        
+    # Refit best model on ALL data
+    forecast_values = []
+    lower_bounds = []
+    upper_bounds = []
     
-    forecast_values = forecasts.tolist()
-    lower_bounds = conf_int[:, 0].tolist()
-    upper_bounds = conf_int[:, 1].tolist()
+    if best_model_name == 'Auto-ARIMA':
+        try:
+            model = pm.auto_arima(series, seasonal=False, stepwise=True, suppress_warnings=True, error_action='ignore')
+            preds, conf_int = model.predict(n_periods=steps, return_conf_int=True)
+            forecast_values = preds.tolist()
+            lower_bounds = conf_int[:, 0].tolist()
+            upper_bounds = conf_int[:, 1].tolist()
+        except Exception as e:
+            # Absolute fallback
+            forecast_values = [series[-1]] * steps
+            lower_bounds = [series[-1] * 0.9] * steps
+            upper_bounds = [series[-1] * 1.1] * steps
+    else:
+        try:
+            model = ExponentialSmoothing(series, trend='add', seasonal=None, initialization_method="estimated").fit()
+            preds = model.forecast(steps)
+            forecast_values = preds.tolist()
+            # HW doesn't give confidence intervals easily out of the box in statsmodels, approximate with historical std
+            std = float(np.std(series))
+            lower_bounds = [p - (1.96 * std) for p in forecast_values]
+            upper_bounds = [p + (1.96 * std) for p in forecast_values]
+        except Exception as e:
+            forecast_values = [series[-1]] * steps
+            lower_bounds = [series[-1] * 0.9] * steps
+            upper_bounds = [series[-1] * 1.1] * steps
 
-    # Build unified chart payload (spec Section 11)
-    chart_data = []
-    base_date = datetime(2026, 1, 1)
-    
-    # Historical + imputed rows
-    for i, (val, is_imp) in enumerate(zip(processed_values, is_imputed_mask)):
-        row = {
-            "date": (base_date + timedelta(days=i*30)).strftime("%Y-%m-%d"),
-            "historical": None if is_imp else val,
-            "imputed": val if is_imp else None,
-            "forecast": None,
-            "lower_bound": None,
-            "upper_bound": None
-        }
-        chart_data.append(row)
-    
-    # Forecast rows
+    # Construct final output dictionary
+    historical = []
+    imputed = []
+    for i, (val, is_imp, ts) in enumerate(zip(series, is_imputed_mask, timestamps)):
+        if is_imp:
+            imputed.append({"timestamp": ts, "value": float(val)})
+        else:
+            historical.append({"timestamp": ts, "value": float(val)})
+            
+    forecast = []
+    f_lower = []
+    f_upper = []
     for i in range(steps):
-        row = {
-            "date": (base_date + timedelta(days=(len(processed_values)+i)*30)).strftime("%Y-%m-%d"),
-            "historical": None,
-            "imputed": None,
-            "forecast": forecast_values[i],
-            "lower_bound": lower_bounds[i],
-            "upper_bound": upper_bounds[i]
-        }
-        chart_data.append(row)
-    
-    return chart_data
+        ts = future_timestamps[i]
+        forecast.append({"timestamp": ts, "value": float(forecast_values[i])})
+        f_lower.append({"timestamp": ts, "value": float(lower_bounds[i])})
+        f_upper.append({"timestamp": ts, "value": float(upper_bounds[i])})
+        
+    return {
+        "target_column": target_col,
+        "historical": historical,
+        "imputed": imputed,
+        "forecast": forecast,
+        "forecast_lower": f_lower,
+        "forecast_upper": f_upper,
+        "model": best_model_name
+    }

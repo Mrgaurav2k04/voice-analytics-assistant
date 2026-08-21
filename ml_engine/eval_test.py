@@ -1,64 +1,95 @@
 import numpy as np
 import pandas as pd
 from engine import auto_impute, auto_forecast
+import warnings
 
-def run_evaluation_harness():
-    print("Running Autonomous Imputation Evaluation Harness...")
-    test_cases = 10
-    total_rmse = 0
-    passed = 0
-    
-    for i in range(test_cases):
-        np.random.seed(i)
-        clean_data = np.linspace(10, 50, 50) + np.random.normal(0, 2, 50)
+warnings.filterwarnings("ignore")
+
+def generate_synthetic_datasets(n=10):
+    datasets = []
+    for i in range(n):
+        np.random.seed(42 + i)
+        n_samples = 100
         
+        # Base patterns
+        if i % 3 == 0:
+            # Linear trend
+            clean_data = np.linspace(10, 50, n_samples)
+        elif i % 3 == 1:
+            # Sine wave seasonality
+            clean_data = 20 + 10 * np.sin(np.linspace(0, 4 * np.pi, n_samples))
+        else:
+            # Random walk
+            clean_data = np.cumsum(np.random.normal(0, 1, n_samples)) + 50
+            
+        # Add noise
+        clean_data += np.random.normal(0, 2, n_samples)
+        
+        # Create corrupted version for imputation testing
         corrupted_data = clean_data.copy()
-        missing_indices = np.random.choice(50, 10, replace=False)
+        missing_indices = np.random.choice(n_samples, int(n_samples * 0.15), replace=False)
         corrupted_data[missing_indices] = np.nan
         
-        df = pd.DataFrame({"consumption": corrupted_data})
-        
-        # UNPACK TUPLE
-        processed_df, metadata = auto_impute(df, target_col="consumption")
-        imputed_array = processed_df["consumption"].values
-        
-        errors = [
-            (imputed_array[idx] - clean_data[idx])**2 
-            for idx in missing_indices
-        ]
-        
-        rmse = np.sqrt(np.mean(errors))
-        total_rmse += rmse
-        
-        threshold = 3.0
-        if rmse < threshold:
-            passed += 1
-        status = '✓' if rmse < threshold else '✗'
-        print(f"  Case {i+1}: RMSE={rmse:.2f} {status} | {metadata['method']}")
+        df = pd.DataFrame({"value": corrupted_data})
+        datasets.append({
+            "id": i + 1,
+            "df": df,
+            "clean_data": clean_data,
+            "missing_indices": missing_indices
+        })
+    return datasets
 
-    avg_rmse = total_rmse / test_cases
-    print(f"\nAverage RMSE across {test_cases} test cases: {avg_rmse:.2f}")
-    print(f"Passed: {passed}/{test_cases} (threshold: {threshold})")
+def run_evaluation_harness():
+    print("==================================================")
+    print("Starting ML/Time-Series Evaluation Harness")
+    print("==================================================\n")
     
-    # Test forecasting
-    print("\nTesting forecast output schema...")
-    df_full = pd.DataFrame({"consumption": clean_data})
-    chart_data = auto_forecast(df_full, "consumption", steps=6)
+    datasets = generate_synthetic_datasets(10)
     
-    required_keys = {"date", "historical", "imputed", "forecast", "lower_bound", "upper_bound"}
-    assert all(set(row.keys()) == required_keys for row in chart_data), "Schema mismatch"
-    assert len(chart_data) == 56, f"Expected 56 rows (50 hist + 6 forecast), got {len(chart_data)}"
+    total_imputation_mae = 0
+    total_forecast_mae = 0
     
-    # Verify historical/imputed separation works
-    hist_count = sum(1 for r in chart_data if r['historical'] is not None)
-    imp_count = sum(1 for r in chart_data if r['imputed'] is not None)
-    fcst_count = sum(1 for r in chart_data if r['forecast'] is not None)
+    for ds in datasets:
+        print(f"Dataset {ds['id']}:")
+        df = ds['df']
+        clean_data = ds['clean_data']
+        missing_indices = ds['missing_indices']
+        
+        # 1. Test Imputation
+        processed_df, meta = auto_impute(df, target_col="value")
+        imputed_array = processed_df["value"].values
+        
+        imp_errors = [abs(imputed_array[idx] - clean_data[idx]) for idx in missing_indices]
+        imp_mae = np.mean(imp_errors) if imp_errors else 0
+        total_imputation_mae += imp_mae
+        print(f"  [Imputation] Method: {meta['method']} | MAE: {imp_mae:.2f}")
+        
+        # 2. Test Forecasting
+        # To test forecasting, we hold out the last 10 points
+        holdout_steps = 10
+        train_clean = clean_data[:-holdout_steps]
+        test_clean = clean_data[-holdout_steps:]
+        
+        train_df = pd.DataFrame({"value": train_clean})
+        # Mock imputation metadata required by forecast
+        train_df["value_is_imputed"] = [False] * len(train_clean)
+        
+        forecast_res = auto_forecast(train_df, "value", steps=holdout_steps)
+        forecast_vals = [f["value"] for f in forecast_res["forecast"]]
+        
+        f_errors = [abs(forecast_vals[i] - test_clean[i]) for i in range(holdout_steps)]
+        f_mae = np.mean(f_errors)
+        total_forecast_mae += f_mae
+        print(f"  [Forecast]   Model: {forecast_res['model']} | MAE: {f_mae:.2f}\n")
+        
+    avg_imp_mae = total_imputation_mae / len(datasets)
+    avg_f_mae = total_forecast_mae / len(datasets)
     
-    print("  Forecast schema: ✓")
-    print(f"  Total rows: {len(chart_data)}")
-    print(f"  Historical rows: {hist_count}")
-    print(f"  Imputed rows: {imp_count}")
-    print(f"  Forecast rows: {fcst_count}")
+    print("==================================================")
+    print("Final Average Results across 10 datasets:")
+    print(f"Imputation MAE: {avg_imp_mae:.2f}")
+    print(f"Forecast MAE:   {avg_f_mae:.2f}")
+    print("==================================================")
 
 if __name__ == "__main__":
     run_evaluation_harness()

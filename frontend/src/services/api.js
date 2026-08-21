@@ -1,25 +1,41 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = ''
 
 export async function uploadFile(file) {
-  const formData = new FormData();
-  formData.append("file", file);
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  console.log('[API] POST /api/upload', file.name)
   
   const response = await fetch(`${API_BASE}/api/upload`, {
-    method: "POST",
+    method: 'POST',
     body: formData,
-  });
+  })
   
-  if (!response.ok) throw new Error("Failed to upload CSV");
-  return await response.json(); // returns { file_id, filename, columns }
+  console.log('[API] Response status:', response.status)
+  
+  if (!response.ok) {
+    const text = await response.text()
+    console.error('[API] Error body:', text)
+    throw new Error('Failed to upload CSV')
+  }
+  return await response.json()
 }
 
 export async function sendChat(message, fileId) {
-  const response = await fetch(`${API_BASE}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, file_id: fileId }),
-  });
+  console.log('[API] POST /api/chat', { message, fileId })
   
-  if (!response.ok) throw new Error("Failed to process chat query");
-  return await response.json(); // returns { text, chart_payload: { data: [...] }, audio_base64 }
+  const response = await fetch(`${API_BASE}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, file_id: fileId }),
+  })
+  
+  console.log('[API] Response status:', response.status)
+  
+  if (!response.ok) {
+    const text = await response.text()
+    console.error('[API] Error body:', text)
+    throw new Error('Failed to process chat query')
+  }
+  return await response.json()
 }

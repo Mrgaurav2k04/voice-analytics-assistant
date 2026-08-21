@@ -113,6 +113,18 @@ def auto_forecast(df, target_col, steps=6):
     Uses a tournament between Auto-ARIMA and Exponential Smoothing.
     Returns a strict JSON-serializable dictionary output.
     """
+    if target_col not in df.columns:
+        raise ValueError(f"Target column '{target_col}' not found in dataset")
+        
+    if not pd.api.types.is_numeric_dtype(df[target_col]):
+        try:
+            df[target_col] = pd.to_numeric(df[target_col])
+        except ValueError:
+            raise ValueError(f"Target column '{target_col}' must be numeric for forecasting")
+            
+    if not isinstance(steps, int) or not (1 <= steps <= 24):
+        raise ValueError("Forecast horizon (steps) must be between 1 and 24")
+
     series = df[target_col].tolist()
     is_imputed_col = f"{target_col}_is_imputed"
     if is_imputed_col in df.columns:

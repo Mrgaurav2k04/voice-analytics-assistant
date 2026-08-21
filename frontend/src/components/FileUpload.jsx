@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { uploadFile } from '../services/api';
 
-export default function FileUpload({ onUploadSuccess }) {
+export default function FileUpload({ onUploadSuccess, metadata: initialMetadata }) {
   const [loading, setLoading] = useState(false);
-  const [metadata, setMetadata] = useState(null);
+  const [metadata, setMetadata] = useState(initialMetadata || null);
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
@@ -14,7 +14,7 @@ export default function FileUpload({ onUploadSuccess }) {
     try {
       const data = await uploadFile(file);
       setMetadata(data);
-      onUploadSuccess(data); // Pass full metadata to App
+      if(onUploadSuccess) onUploadSuccess(data); 
     } catch (err) {
       alert("Error uploading file: " + err.message);
     } finally {
@@ -24,37 +24,66 @@ export default function FileUpload({ onUploadSuccess }) {
 
   if (metadata) {
     return (
-      <div className="p-6 bg-terminal-panel border border-terminal-border rounded-lg text-terminal-text shadow-lg">
-        <div className="flex items-center gap-2 text-terminal-accent mb-4">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-          <span className="font-semibold text-lg">{metadata.filename}</span>
+      <div className="relative p-8 bg-white/5 backdrop-blur-xl border border-spatial-glassBorder rounded-3xl text-spatial-text shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] overflow-hidden group">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-spatial-accent/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none group-hover:bg-spatial-accent/20 transition-all duration-500"></div>
+        
+        <div className="flex items-center gap-3 text-spatial-accent mb-6">
+          <div className="p-2 bg-spatial-accent/10 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+            <svg className="w-6 h-6 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <span className="font-semibold text-xl tracking-wide truncate max-w-[200px]" title={metadata.filename}>{metadata.filename}</span>
         </div>
         
-        <h3 className="text-xl font-bold mb-4 text-white">Dataset Ready</h3>
+        <h3 className="text-2xl font-bold mb-6 text-white font-['Outfit']">Dataset Ready</h3>
         
-        <div className="space-y-2 text-sm text-terminal-textDim font-mono">
-          <p>Rows: <span className="text-terminal-text">{metadata.rows?.toLocaleString() || 1240}</span></p>
-          <p>Columns: <span className="text-terminal-text">{metadata.columns?.length || metadata.columns || 5}</span></p>
-          <p>Missing values: <span className="text-terminal-text">{metadata.missing_values ?? 12}</span></p>
-          <p>Values imputed: <span className="text-terminal-text">{metadata.values_imputed ?? 12}</span></p>
+        <div className="grid grid-cols-2 gap-4 text-sm text-spatial-textDim font-sans">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Rows</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.rows?.toLocaleString() || 1240}</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Columns</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.columns?.length || metadata.columns || 5}</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Missing</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.missing_values ?? 12}</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+            <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Imputed</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.values_imputed ?? 12}</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-terminal-panel border border-terminal-border rounded-lg text-terminal-text shadow-lg transition-all hover:border-terminal-accent/50">
-      <label className="block text-sm font-medium mb-4 text-terminal-textDim">Upload Time-Series CSV</label>
-      <input 
-        type="file" 
-        accept=".csv" 
-        onChange={handleFileChange}
-        className="block w-full text-sm text-terminal-textDim file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-terminal-accent/20 file:text-terminal-accent hover:file:bg-terminal-accent/30 cursor-pointer transition-colors"
-      />
+    <div className="relative group p-10 bg-white/5 backdrop-blur-xl border border-spatial-glassBorder rounded-3xl text-spatial-text shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] transition-all duration-300 hover:bg-white/10 hover:border-spatial-accent/50 hover:shadow-[0_8px_32px_0_rgba(6,182,212,0.15)] flex flex-col items-center justify-center text-center">
+      
+      <div className="absolute inset-0 border-2 border-dashed border-spatial-glassBorder rounded-3xl pointer-events-none group-hover:border-spatial-accent/40 transition-colors duration-300 m-4"></div>
+      
+      <div className="w-16 h-16 mb-6 rounded-2xl bg-spatial-purple/20 flex items-center justify-center text-spatial-purple group-hover:scale-110 group-hover:bg-spatial-accent/20 group-hover:text-spatial-accent transition-all duration-500 shadow-[0_0_20px_rgba(139,92,246,0.2)] group-hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]">
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+      </div>
+
+      <h3 className="text-2xl font-bold mb-2 text-white font-['Outfit']">Upload Dataset</h3>
+      <label className="block text-sm font-medium mb-6 text-spatial-textDim">Select a time-series CSV file</label>
+      
+      <label className="relative overflow-hidden inline-flex items-center justify-center px-8 py-3 text-sm font-bold text-white bg-gradient-to-r from-spatial-purple to-spatial-accent rounded-full cursor-pointer hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all duration-300 transform hover:-translate-y-1">
+        <span>Browse Files</span>
+        <input 
+          type="file" 
+          accept=".csv" 
+          onChange={handleFileChange}
+          className="absolute inset-0 opacity-0 cursor-pointer"
+        />
+      </label>
+
       {loading && (
-        <div className="mt-4 flex items-center gap-2 text-terminal-accent/80">
-          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10" strokeWidth="4" strokeDasharray="32" strokeLinecap="round"></circle></svg>
-          <span className="text-sm">Uploading and preprocessing dataset...</span>
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-spatial-bg/80 backdrop-blur-md rounded-3xl">
+          <div className="w-12 h-12 border-4 border-spatial-accent/30 border-t-spatial-accent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
+          <span className="text-sm font-medium text-spatial-accent animate-pulse">Processing dataset...</span>
         </div>
       )}
     </div>

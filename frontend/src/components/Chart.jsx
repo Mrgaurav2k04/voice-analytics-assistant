@@ -2,30 +2,92 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 export default function Chart({ data }) {
   if (!data || data.length === 0) return (
-    <div className="text-gray-400 text-center mt-10">No chart data available yet.</div>
+    <div className="text-spatial-textDim text-center mt-10 font-sans opacity-50">Awaiting telemetry data...</div>
   );
 
   return (
-    <div className="h-96 w-full bg-terminal-panel border border-terminal-border p-4 rounded-xl shadow-xl">
+    <div className="h-[450px] w-full p-2 relative">
+      {/* Background ambient glow for chart */}
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-spatial-accent/5 rounded-full blur-[80px] pointer-events-none"></div>
+      
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="date" stroke="#9CA3AF" />
-          <YAxis stroke="#9CA3AF" />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px', color: '#F3F4F6' }} 
-            itemStyle={{ color: '#E5E7EB' }}
+        <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 10" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          
+          <XAxis 
+            dataKey="date" 
+            stroke="rgba(255,255,255,0.3)" 
+            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, fontFamily: 'Inter' }}
+            tickLine={false}
+            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+            dy={10}
           />
-          <Legend wrapperStyle={{ paddingTop: '20px' }}/>
           
-          {/* Blue for Historical */}
-          <Line type="monotone" dataKey="historical" stroke="#3B82F6" strokeWidth={3} connectNulls name="Historical" />
+          <YAxis 
+            stroke="rgba(255,255,255,0.3)" 
+            tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12, fontFamily: 'Inter' }}
+            tickLine={false}
+            axisLine={false}
+            dx={-10}
+          />
           
-          {/* Yellow Dashed for Imputed Gaps */}
-          <Line type="monotone" dataKey="imputed" stroke="#EAB308" strokeWidth={3} strokeDasharray="5 5" connectNulls name="Imputed" />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: 'rgba(10, 10, 20, 0.8)', 
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.1)', 
+              borderRadius: '16px', 
+              color: '#fff',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+            }} 
+            itemStyle={{ color: '#fff', fontFamily: 'Outfit', fontWeight: 500 }}
+            labelStyle={{ color: 'rgba(255,255,255,0.5)', marginBottom: '8px', fontFamily: 'Inter', fontSize: '12px' }}
+          />
           
-          {/* Green for Forecast */}
-          <Line type="monotone" dataKey="forecast" stroke="#22C55E" strokeWidth={3} connectNulls name="Forecast" />
+          <Legend 
+            wrapperStyle={{ paddingTop: '20px', fontFamily: 'Outfit', fontSize: '14px' }}
+            iconType="circle"
+          />
+          
+          {/* Spatial Accent (Cyan) for Historical */}
+          <Line 
+            type="monotone" 
+            dataKey="historical" 
+            stroke="#06b6d4" 
+            strokeWidth={3} 
+            dot={false}
+            activeDot={{ r: 6, fill: '#06b6d4', stroke: '#fff', strokeWidth: 2, className: 'drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]' }}
+            connectNulls 
+            name="Historical Data" 
+            style={{ filter: 'drop-shadow(0px 4px 8px rgba(6, 182, 212, 0.4))' }}
+          />
+          
+          {/* Magenta Dashed for Imputed Gaps */}
+          <Line 
+            type="monotone" 
+            dataKey="imputed" 
+            stroke="#ec4899" 
+            strokeWidth={3} 
+            strokeDasharray="6 6" 
+            dot={{ r: 4, fill: '#ec4899', strokeWidth: 0 }}
+            activeDot={{ r: 6, fill: '#ec4899', stroke: '#fff', strokeWidth: 2 }}
+            connectNulls 
+            name="Imputed Gap" 
+            style={{ filter: 'drop-shadow(0px 0px 8px rgba(236, 72, 153, 0.6))' }}
+          />
+          
+          {/* Purple for Forecast */}
+          <Line 
+            type="monotone" 
+            dataKey="forecast" 
+            stroke="#8b5cf6" 
+            strokeWidth={3} 
+            dot={false}
+            activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2, className: 'drop-shadow-[0_0_10px_rgba(139,92,246,0.8)]' }}
+            connectNulls 
+            name="AI Forecast" 
+            style={{ filter: 'drop-shadow(0px 4px 8px rgba(139, 92, 246, 0.4))' }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

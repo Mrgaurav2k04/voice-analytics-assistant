@@ -6,7 +6,7 @@ export default function Chart({ data }) {
   );
 
   return (
-    <div className="h-96 w-full mt-8 bg-gray-900 p-4 rounded-lg shadow-lg">
+    <div className="h-96 w-full bg-terminal-panel border border-terminal-border p-4 rounded-xl shadow-xl">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />

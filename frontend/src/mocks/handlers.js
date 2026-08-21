@@ -8,8 +8,10 @@ export const handlers = [
     return HttpResponse.json({
       file_id: 'mock-file-123',
       filename: file?.name || 'data.csv',
-      columns: ['date', 'value'],
-      rows: 100,
+      columns: 5,
+      rows: 1240,
+      missing_values: 12,
+      values_imputed: 12,
       message: 'File processed successfully'
     })
   }),

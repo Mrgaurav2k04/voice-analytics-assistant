@@ -3,7 +3,7 @@ import { VoiceButton } from './components/VoiceButton';
 import FileUpload from './components/FileUpload';
 import Chart from './components/Chart';
 import AudioPlayer from './components/AudioPlayer';
-import { uploadFile, sendChat } from './services/api';
+import { sendChat } from './services/api';
 
 export default function App() {
   const [datasetMetadata, setDatasetMetadata] = useState(null);
@@ -33,28 +33,55 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold tracking-tight">Voice Analytics Assistant</h1>
+    <div className="min-h-screen bg-terminal-bg text-terminal-text p-4 md:p-8 font-sans selection:bg-terminal-accent/30 selection:text-white">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <header className="mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-2">
+            Voice Analytics Assistant
+          </h1>
+          <p className="text-terminal-textDim">Upload a dataset and speak your query.</p>
+        </header>
         
-        <FileUpload onUploadSuccess={handleUploadSuccess} />
+        {!datasetMetadata && (
+          <div className="max-w-2xl">
+            <FileUpload onUploadSuccess={handleUploadSuccess} />
+          </div>
+        )}
 
-        {datasetMetadata && (
-          <div className="flex flex-col items-center justify-center p-6 bg-gray-900 rounded-lg border border-gray-800 shadow-sm">
-            <VoiceButton 
-              onTranscript={handleVoiceSubmit} 
-              disabled={isProcessing} 
-              isProcessing={isProcessing} 
-            />
-            {isProcessing && <p className="mt-4 text-sm text-gray-400 animate-pulse">Processing request...</p>}
+        {datasetMetadata && chartData.length === 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <FileUpload onUploadSuccess={handleUploadSuccess} />
+            </div>
+            <div className="flex flex-col items-center justify-center p-8 bg-terminal-panel rounded-xl border border-terminal-border shadow-xl h-full min-h-[300px]">
+              <VoiceButton 
+                onTranscript={handleVoiceSubmit} 
+                disabled={isProcessing} 
+                isProcessing={isProcessing} 
+              />
+            </div>
           </div>
         )}
 
         {chartData.length > 0 && (
-          <>
-            <Chart data={chartData} />
-            <AudioPlayer base64Audio={audioBase64} />
-          </>
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1 space-y-8">
+                <FileUpload onUploadSuccess={handleUploadSuccess} />
+                <div className="flex flex-col items-center justify-center p-6 bg-terminal-panel rounded-xl border border-terminal-border shadow-xl">
+                  <VoiceButton 
+                    onTranscript={handleVoiceSubmit} 
+                    disabled={isProcessing} 
+                    isProcessing={isProcessing} 
+                  />
+                </div>
+              </div>
+              <div className="lg:col-span-2">
+                <Chart data={chartData} />
+              </div>
+            </div>
+            <AudioPlayer audioBase64={audioBase64} />
+          </div>
         )}
       </div>
     </div>

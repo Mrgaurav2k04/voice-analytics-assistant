@@ -19,7 +19,8 @@ def run_evaluation_harness():
         df = pd.DataFrame({"consumption": corrupted_data})
         
         # UNPACK TUPLE
-        imputed_array, metadata = auto_impute(df, target_col="consumption")
+        processed_df, metadata = auto_impute(df, target_col="consumption")
+        imputed_array = processed_df["consumption"].values
         
         errors = [
             (imputed_array[idx] - clean_data[idx])**2 

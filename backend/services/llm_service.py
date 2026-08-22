@@ -1,8 +1,10 @@
 import os
 import json
+import time
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 from models.intent import AnalyticsIntent
 
@@ -16,10 +18,16 @@ def get_gemini_client():
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured")
 
-    return genai.Client(api_key=api_key)
+    # Add a reasonable timeout so the API doesn't hang indefinitely.
+    # This ensures that if the LLM is unreachable, it raises an Exception and triggers the regex fallback.
+    return genai.Client(
+        api_key=api_key,
+        http_options={'timeout': 10.0}
+    )
 
 
 def parse_with_gemini(text: str, columns: list[str]) -> AnalyticsIntent:
+    print("[LLM] Initializing Gemini client")
     client = get_gemini_client()
 
     prompt = f"""
@@ -52,10 +60,21 @@ Rules:
 - return JSON only
 """
 
+    print("[LLM] Calling Gemini")
+    start_time = time.time()
+    
+    # Use a configuration with timeout and explicitly avoid tools if they might trigger AFC hangs
     response = client.models.generate_content(
         model="gemini-3.6-flash",
-        contents=prompt
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            # We don't need function calling, so disable it implicitly by not passing tools
+        )
     )
+
+    elapsed = time.time() - start_time
+    print(f"[LLM] Gemini returned in {elapsed:.2f} seconds")
 
     raw_text = response.text.strip()
 

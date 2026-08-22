@@ -1,3 +1,4 @@
+import time
 from fastapi import APIRouter, HTTPException
 import sys
 import os
@@ -15,6 +16,9 @@ router = APIRouter(prefix="/api", tags=["Chat"])
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+    print("[CHAT] Request received")
+    overall_start = time.time()
+    
     dataset = get_dataset(request.file_id)
 
     if dataset is None:
@@ -22,11 +26,15 @@ async def chat(request: ChatRequest):
             status_code=404,
             detail="Dataset not found"
         )
-
+    
+    print(f"[CHAT] Dataset loaded in {time.time() - overall_start:.2f} seconds")
     df = dataset["processed_df"]
 
     try:
+        print("[CHAT] Calling parse_intent")
+        intent_start = time.time()
         intent = parse_intent(request.message, df)
+        print(f"[CHAT] Intent parsed in {time.time() - intent_start:.2f} seconds")
     except ValueError as e:
         raise HTTPException(
             status_code=400,
@@ -51,16 +59,20 @@ async def chat(request: ChatRequest):
             )
             
         try:
-            # Impute any missing values first
+            print("[CHAT] Starting imputation")
+            impute_start = time.time()
             ml_df, impute_meta = auto_impute(ml_df, target_col=intent.target_column)
+            print(f"[CHAT] Imputation completed in {time.time() - impute_start:.2f} seconds")
             
-            # Forecast
+            print("[CHAT] Starting forecast")
+            forecast_start = time.time()
             chart_payload = auto_forecast(
                 df=ml_df, 
                 target_col=intent.target_column, 
                 steps=intent.horizon
             )
             chart_payload["imputation_method"] = impute_meta.get("method", "none")
+            print(f"[CHAT] Forecast completed in {time.time() - forecast_start:.2f} seconds")
         except ValueError as e:
             raise HTTPException(
                 status_code=400,
@@ -72,6 +84,7 @@ async def chat(request: ChatRequest):
                 detail=f"Forecasting engine error: {str(e)}"
             )
 
+    print(f"[CHAT] Returning response. Total elapsed: {time.time() - overall_start:.2f} seconds")
     return ChatResponse(
         text="I understood your analytics request.",
         intent=intent.model_dump(),

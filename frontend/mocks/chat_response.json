@@ -1,0 +1,13 @@
+{
+  "text": "Here is the forecast for the next 6 months, using Time-Aware KNN for missing gaps.",
+  "chart_payload": {
+    "data": [
+      { "date": "2026-01-01", "historical": 105, "imputed": null, "forecast": null, "lower_bound": null, "upper_bound": null },
+      { "date": "2026-02-01", "historical": null, "imputed": 112, "forecast": null, "lower_bound": null, "upper_bound": null },
+      { "date": "2026-03-01", "historical": 118, "imputed": null, "forecast": null, "lower_bound": null, "upper_bound": null },
+      { "date": "2026-04-01", "historical": null, "imputed": null, "forecast": 125, "lower_bound": 115, "upper_bound": 135 },
+      { "date": "2026-05-01", "historical": null, "imputed": null, "forecast": 132, "lower_bound": 120, "upper_bound": 144 }
+    ]
+  },
+  "audio_base64": "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAD/+NAxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+}

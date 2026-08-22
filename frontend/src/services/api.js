@@ -14,9 +14,12 @@ export async function uploadFile(file) {
   console.log('[API] Response status:', response.status)
   
   if (!response.ok) {
-    const text = await response.text()
-    console.error('[API] Error body:', text)
-    throw new Error('Failed to upload CSV')
+    let detail = 'Failed to upload CSV'
+    try {
+      const body = await response.json()
+      detail = body.detail || detail
+    } catch { /* ignore parse errors */ }
+    throw new Error(detail)
   }
   return await response.json()
 }
@@ -33,9 +36,12 @@ export async function sendChat(message, fileId) {
   console.log('[API] Response status:', response.status)
   
   if (!response.ok) {
-    const text = await response.text()
-    console.error('[API] Error body:', text)
-    throw new Error('Failed to process chat query')
+    let detail = 'Failed to process your request'
+    try {
+      const body = await response.json()
+      detail = body.detail || detail
+    } catch { /* ignore parse errors */ }
+    throw new Error(detail)
   }
   return await response.json()
 }

@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { uploadFile } from '../services/api';
 
-export default function FileUpload({ onUploadSuccess, metadata: initialMetadata }) {
+export default function FileUpload({ onUploadSuccess, metadata: externalMetadata }) {
   const [loading, setLoading] = useState(false);
-  const [metadata, setMetadata] = useState(initialMetadata || null);
+
+  // Use the metadata passed from App (which is the full upload response object)
+  const meta = externalMetadata;
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
     setLoading(true);
-    setMetadata(null);
     try {
       const data = await uploadFile(file);
-      setMetadata(data);
       if(onUploadSuccess) onUploadSuccess(data); 
     } catch (err) {
       alert("Error uploading file: " + err.message);
@@ -22,7 +22,15 @@ export default function FileUpload({ onUploadSuccess, metadata: initialMetadata 
     }
   };
 
-  if (metadata) {
+  // Resolve metadata fields — the upload response has { file_id, filename, metadata: { rows, columns, ... } }
+  const rows = meta?.metadata?.rows ?? meta?.rows ?? null;
+  const cols = meta?.metadata?.columns ?? meta?.columns ?? null;
+  const colCount = Array.isArray(cols) ? cols.length : (typeof cols === 'number' ? cols : null);
+  const missing = meta?.metadata?.missing_values ?? meta?.missing_values ?? null;
+  const imputed = meta?.metadata?.imputed_values ?? meta?.imputed_values ?? null;
+  const filename = meta?.filename ?? 'dataset.csv';
+
+  if (meta) {
     return (
       <div className="relative p-8 bg-white/5 backdrop-blur-xl border border-spatial-glassBorder rounded-3xl text-spatial-text shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] overflow-hidden group">
         <div className="absolute top-0 right-0 w-32 h-32 bg-spatial-accent/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none group-hover:bg-spatial-accent/20 transition-all duration-500"></div>
@@ -31,7 +39,7 @@ export default function FileUpload({ onUploadSuccess, metadata: initialMetadata 
           <div className="p-2 bg-spatial-accent/10 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.3)]">
             <svg className="w-6 h-6 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
           </div>
-          <span className="font-semibold text-xl tracking-wide truncate max-w-[200px]" title={metadata.filename}>{metadata.filename}</span>
+          <span className="font-semibold text-xl tracking-wide truncate max-w-[200px]" title={filename}>{filename}</span>
         </div>
         
         <h3 className="text-2xl font-bold mb-6 text-white font-['Outfit']">Dataset Ready</h3>
@@ -39,19 +47,19 @@ export default function FileUpload({ onUploadSuccess, metadata: initialMetadata 
         <div className="grid grid-cols-2 gap-4 text-sm text-spatial-textDim font-sans">
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Rows</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.rows?.toLocaleString() ?? 0}</p>
+            <p className="text-spatial-text font-medium text-lg">{rows != null ? rows.toLocaleString() : '—'}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Columns</p>
-            <p className="text-spatial-text font-medium text-lg">{Array.isArray(metadata.columns) ? metadata.columns.length : (metadata.columns ?? 0)}</p>
+            <p className="text-spatial-text font-medium text-lg">{colCount != null ? colCount.toLocaleString() : '—'}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Missing</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.missing_values ?? 0}</p>
+            <p className="text-spatial-text font-medium text-lg">{missing != null ? missing.toLocaleString() : '—'}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Imputed</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.imputed_values ?? 0}</p>
+            <p className="text-spatial-text font-medium text-lg">{imputed != null ? imputed.toLocaleString() : '—'}</p>
           </div>
         </div>
       </div>

@@ -15,6 +15,9 @@ export default function App() {
   const handleUploadSuccess = (metadata) => {
     setDatasetMetadata(metadata);
     setError('');
+    setChartData([]);
+    setResultMeta(null);
+    setQuery('');
   };
 
   const handleTextSubmit = async (e) => {

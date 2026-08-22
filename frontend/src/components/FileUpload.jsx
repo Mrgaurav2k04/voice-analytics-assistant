@@ -39,19 +39,19 @@ export default function FileUpload({ onUploadSuccess, metadata: initialMetadata 
         <div className="grid grid-cols-2 gap-4 text-sm text-spatial-textDim font-sans">
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Rows</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.rows?.toLocaleString() || 1240}</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.rows?.toLocaleString() ?? 0}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Columns</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.columns?.length || metadata.columns || 5}</p>
+            <p className="text-spatial-text font-medium text-lg">{Array.isArray(metadata.columns) ? metadata.columns.length : (metadata.columns ?? 0)}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Missing</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.missing_values ?? 12}</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.missing_values ?? 0}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
             <p className="text-xs uppercase tracking-widest opacity-60 mb-1">Imputed</p>
-            <p className="text-spatial-text font-medium text-lg">{metadata.values_imputed ?? 12}</p>
+            <p className="text-spatial-text font-medium text-lg">{metadata.imputed_values ?? 0}</p>
           </div>
         </div>
       </div>

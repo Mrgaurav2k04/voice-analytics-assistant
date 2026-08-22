@@ -14,6 +14,9 @@ export default function Chart({ data }) {
       : null
   }));
 
+  // Check if dates are numeric indices rather than actual timestamps
+  const isIndexData = chartData.length > 0 && !isNaN(Number(chartData[0].date));
+
   return (
     <div className="h-full w-full p-2 relative">
       {/* Background ambient glow for chart */}
@@ -30,6 +33,14 @@ export default function Chart({ data }) {
             tickLine={false}
             axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
             dy={10}
+            label={{ 
+              value: isIndexData ? 'Observation' : 'Time', 
+              position: 'insideBottomRight', 
+              offset: -5,
+              fill: 'rgba(255,255,255,0.5)',
+              fontSize: 12
+            }}
+            tickFormatter={(val) => isIndexData ? `#${val}` : String(val).split(' ')[0]}
           />
           
           <YAxis 
@@ -52,6 +63,7 @@ export default function Chart({ data }) {
             }} 
             itemStyle={{ color: '#fff', fontFamily: 'Outfit', fontWeight: 500 }}
             labelStyle={{ color: 'rgba(255,255,255,0.5)', marginBottom: '8px', fontFamily: 'Inter', fontSize: '12px' }}
+            labelFormatter={(label) => isIndexData ? `Observation: ${label}` : `Time: ${label}`}
           />
           
           <Legend 

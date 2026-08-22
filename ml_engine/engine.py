@@ -125,6 +125,7 @@ def auto_forecast(df, target_col, steps=6):
     if not isinstance(steps, int) or not (1 <= steps <= 24):
         raise ValueError("Forecast horizon (steps) must be between 1 and 24")
 
+
     series = df[target_col].tolist()
     is_imputed_col = f"{target_col}_is_imputed"
     if is_imputed_col in df.columns:
@@ -158,9 +159,12 @@ def auto_forecast(df, target_col, steps=6):
         future_timestamps = [str(len(series) + i) for i in range(steps)]
         
     # Tournament: Auto-ARIMA vs Exponential Smoothing
+    MAX_FIT_ROWS = 500
     val_size = min(steps, max(1, len(series) // 5))
     if len(series) > 10:
         train_series = series[:-val_size]
+        if len(train_series) > MAX_FIT_ROWS:
+            train_series = train_series[-MAX_FIT_ROWS:]
         test_series = series[-val_size:]
         
         models = {}
@@ -194,9 +198,13 @@ def auto_forecast(df, target_col, steps=6):
     lower_bounds = []
     upper_bounds = []
     
+    fit_series = series
+    if len(fit_series) > MAX_FIT_ROWS:
+        fit_series = fit_series[-MAX_FIT_ROWS:]
+    
     if best_model_name == 'Auto-ARIMA':
         try:
-            model = pm.auto_arima(series, seasonal=False, stepwise=True, suppress_warnings=True, error_action='ignore')
+            model = pm.auto_arima(fit_series, seasonal=False, stepwise=True, suppress_warnings=True, error_action='ignore')
             preds, conf_int = model.predict(n_periods=steps, return_conf_int=True)
             forecast_values = preds.tolist()
             lower_bounds = conf_int[:, 0].tolist()
@@ -208,11 +216,11 @@ def auto_forecast(df, target_col, steps=6):
             upper_bounds = [series[-1] * 1.1] * steps
     else:
         try:
-            model = ExponentialSmoothing(series, trend='add', seasonal=None, initialization_method="estimated").fit()
+            model = ExponentialSmoothing(fit_series, trend='add', seasonal=None, initialization_method="estimated").fit()
             preds = model.forecast(steps)
             forecast_values = preds.tolist()
             # HW doesn't give confidence intervals easily out of the box in statsmodels, approximate with historical std
-            std = float(np.std(series))
+            std = float(np.std(fit_series))
             lower_bounds = [p - (1.96 * std) for p in forecast_values]
             upper_bounds = [p + (1.96 * std) for p in forecast_values]
         except Exception as e:

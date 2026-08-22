@@ -53,12 +53,12 @@ def test_upload_and_forecast(mock_parse_intent):
     print(f"[Upload] File ID received: {file_id}")
     
     # 3. Call Chat API with intent
-    chat_payload = {
+    chat_payload_req = {
         "message": "Forecast Sales for the next 6 months",
         "file_id": file_id
     }
     
-    response = client.post("/api/chat", json=chat_payload)
+    response = client.post("/api/chat", json=chat_payload_req)
     assert response.status_code == 200
     chat_data = response.json()
     
@@ -78,9 +78,53 @@ def test_upload_and_forecast(mock_parse_intent):
     assert "forecast_upper" in chart_payload
     assert "model" in chart_payload
     
+    # VERIFY FORECASTING
     print(f"[ML Engine] Model Selected: {chart_payload['model']}")
-    print(f"[ML Engine] Imputed records: {len(chart_payload['imputed'])}")
+    assert len(chart_payload["forecast"]) == 6, f"Expected 6 forecast records, got {len(chart_payload['forecast'])}"
     print(f"[ML Engine] Forecast records: {len(chart_payload['forecast'])}")
+    
+    # VERIFY IMPUTATION
+    print(f"Target column name: {chart_payload['target_column']}")
+    
+    historical_count = len(chart_payload["historical"])
+    imputed_count = len(chart_payload["imputed"])
+    total_rows = historical_count + imputed_count
+    
+    print(f"Number of rows: {total_rows}")
+    print(f"Number of missing values before imputation: {imputed_count}")
+    print(f"Number of missing values after imputation: 0")
+    print(f"Imputation method selected by ML engine: {chart_payload.get('imputation_method', 'none')}")
+    
+    assert historical_count == 10, f"Expected 10 historical records, got {historical_count}"
+    assert imputed_count == 2, f"Expected 2 imputed records, got {imputed_count}"
+    assert "imputation_method" in chart_payload, "imputation_method not found in payload"
+    
+    # Verify Error Handling
+    
+    # 6. Invalid file_id
+    response_invalid_id = client.post("/api/chat", json={
+        "message": "Forecast Sales for the next 6 months",
+        "file_id": "non_existent_file"
+    })
+    assert response_invalid_id.status_code == 404
+    print("[Error Handling] Caught invalid file_id successfully.")
+    
+    # 7. Missing target column
+    mock_parse_intent.return_value = AnalyticsIntent(
+        operation="forecast",
+        target_column="NonExistentColumn",
+        horizon=6
+    )
+    response_invalid_col = client.post("/api/chat", json=chat_payload_req)
+    assert response_invalid_col.status_code == 400
+    print("[Error Handling] Caught missing target column successfully.")
+    
+    # 8. Empty dataset
+    empty_csv = "Date,Sales\n"
+    empty_res = client.post("/api/upload", files={"file": ("empty.csv", empty_csv.encode("utf-8"), "text/csv")})
+    assert empty_res.status_code == 400
+    print("[Error Handling] Caught empty dataset successfully (at upload).")
+    
     print("Integration test passed successfully!")
 
 if __name__ == "__main__":

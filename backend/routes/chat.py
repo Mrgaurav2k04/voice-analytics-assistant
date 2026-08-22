@@ -36,22 +36,31 @@ async def chat(request: ChatRequest):
     chart_payload = None
 
     if intent.operation == "forecast":
-        if df.empty:
+        # Use raw_df for ML forecasting to allow auto_impute to handle missing values
+        ml_df = dataset["raw_df"].copy()
+        if ml_df.empty:
             raise HTTPException(
                 status_code=400,
                 detail="Insufficient data for forecasting"
             )
             
+        if intent.target_column and intent.target_column not in ml_df.columns:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Target column '{intent.target_column}' not found in dataset"
+            )
+            
         try:
             # Impute any missing values first
-            df, _ = auto_impute(df, target_col=intent.target_column)
+            ml_df, impute_meta = auto_impute(ml_df, target_col=intent.target_column)
             
             # Forecast
             chart_payload = auto_forecast(
-                df=df, 
+                df=ml_df, 
                 target_col=intent.target_column, 
                 steps=intent.horizon
             )
+            chart_payload["imputation_method"] = impute_meta.get("method", "none")
         except ValueError as e:
             raise HTTPException(
                 status_code=400,
